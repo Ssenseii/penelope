@@ -1,0 +1,5 @@
+questionary
+pyfiglet
+colorama
+pygame-ce
+keyboard
