@@ -1,5 +1,7 @@
 import os
 import time
+import datetime
+import logging
 
 import questionary
 from colorama import Fore, Style
@@ -11,6 +13,8 @@ from tools.chord_trainer.scheduler import ChordScheduler
 from tools.chord_trainer import display
 from tools.chord_trainer.input_handler import InputHandler
 
+_log = logging.getLogger(__name__)
+
 
 class _State:
     def __init__(self, interval: float):
@@ -21,6 +25,51 @@ class _State:
         self.current_chord: str = ""
         self.next_chord: str = ""
         self.next_tick_at: float = 0.0
+        self.chord_counts: dict[str, int] = {}
+        self.total_paused: float = 0.0
+        self._pause_start: float = 0.0
+
+
+def _fmt_duration(seconds: float) -> str:
+    m = int(seconds // 60)
+    s = int(seconds % 60)
+    if m > 0:
+        return f"{m} min {s} sec"
+    return f"{s} sec"
+
+
+def _show_congrats(state: _State, active_secs: float) -> None:
+    total = sum(state.chord_counts.values())
+    dur = _fmt_duration(active_secs)
+    print()
+    print(Fore.CYAN + Style.BRIGHT + "  ╔" + "═" * 46 + "╗")
+    print(Fore.CYAN + Style.BRIGHT + f"  ║  Congrats! You spent {Fore.GREEN}{dur}{Fore.CYAN} training!{' ' * (22 - len(dur))}║")
+    print(Fore.CYAN + Style.BRIGHT + f"  ║  {Fore.WHITE}{total} chord changes  •  {len(state.chord_counts)} chords practiced{Fore.CYAN}  ║")
+    print(Fore.CYAN + Style.BRIGHT + "  ╚" + "═" * 46 + "╝")
+    print()
+
+
+def _log_session(state: _State, mode: str, start_dt: datetime.datetime, active_secs: float, selected: list[str]) -> None:
+    bps = round(1.0 / state.interval, 3)
+    bpm = round(60.0 / state.interval, 1)
+    total = sum(state.chord_counts.values())
+    paused_str = f"  (paused {_fmt_duration(state.total_paused)})" if state.total_paused >= 1 else ""
+
+    sep = "─" * 52
+    _log.info(sep)
+    _log.info("CHORD TRAINING SESSION")
+    _log.info("  Date       : %s", start_dt.strftime("%Y-%m-%d %H:%M:%S"))
+    _log.info("  Duration   : %s%s", _fmt_duration(active_secs), paused_str)
+    _log.info("  Mode       : %s", mode)
+    _log.info("  Interval   : %.1f s/chord  →  BPS: %.3f  |  BPM: %.1f", state.interval, bps, bpm)
+    _log.info("  Chords     : %s", ", ".join(selected))
+    _log.info("  %s", sep)
+    _log.info("  Chord Breakdown:")
+    for chord in selected:
+        count = state.chord_counts.get(chord, 0)
+        _log.info("    %-4s ×  %d", chord, count)
+    _log.info("  Total Changes : %d", total)
+    _log.info(sep)
 
 
 def _find_mp3() -> str:
@@ -129,6 +178,7 @@ def run() -> None:
     # --- State ---
     state = _State(interval)
     state.current_chord = prog.next()
+    state.chord_counts[state.current_chord] = 1
     state.next_chord = prog.next()
     state.next_tick_at = time.perf_counter() + interval
 
@@ -136,6 +186,7 @@ def run() -> None:
         audio.play(0.8)
         state.current_chord = state.next_chord
         state.next_chord = prog.next()
+        state.chord_counts[state.current_chord] = state.chord_counts.get(state.current_chord, 0) + 1
 
     # --- Start subsystems ---
     scheduler = ChordScheduler(state, on_tick)
@@ -143,6 +194,9 @@ def run() -> None:
 
     print()
     display.init()
+
+    start_dt = datetime.datetime.now()
+    start_time = time.perf_counter()
 
     scheduler.start()
     handler.start()
@@ -162,6 +216,14 @@ def run() -> None:
     except KeyboardInterrupt:
         state.running = False
 
+    end_time = time.perf_counter()
+    if state.paused:
+        state.total_paused += end_time - state._pause_start
+
+    active_secs = max(0.0, end_time - start_time - state.total_paused)
+
     handler.stop()
     audio.cleanup()
-    print()
+
+    _show_congrats(state, active_secs)
+    _log_session(state, mode, start_dt, active_secs, selected)

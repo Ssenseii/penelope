@@ -1,3 +1,4 @@
+import time
 import keyboard
 
 
@@ -22,6 +23,10 @@ class InputHandler:
         self._hooks.clear()
 
     def _on_pause(self, _e) -> None:
+        if not self.state.paused:
+            self.state._pause_start = time.perf_counter()
+        else:
+            self.state.total_paused += time.perf_counter() - self.state._pause_start
         self.state.paused = not self.state.paused
 
     def _on_skip(self, _e) -> None:
