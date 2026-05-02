@@ -2,7 +2,7 @@ import random
 
 
 class LinearProgression:
-    _ORDER = ["A", "E", "D", "C", "G"]
+    _ORDER = ["A", "Am", "E", "Em", "D", "C", "G"]
 
     def __init__(self, chords: list[str]):
         self._sequence = [c for c in self._ORDER if c in chords]

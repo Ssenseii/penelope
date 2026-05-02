@@ -126,8 +126,8 @@ def run() -> None:
     mode = questionary.select(
         "Progression mode:",
         choices=[
-            questionary.Choice("Linear  (easiest → hardest)", value="linear"),
             questionary.Choice("Random",                       value="random"),
+            questionary.Choice("Linear  (easiest → hardest)", value="linear"),
             questionary.Choice("Custom pattern",               value="custom"),
             questionary.Choice("Back",                         value=None),
         ],
