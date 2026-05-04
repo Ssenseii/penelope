@@ -15,6 +15,7 @@ from colorama import init, Fore, Style
 
 from tools.metronome.metronome import run as run_metronome
 from tools.chord_trainer.trainer import run as run_chord_trainer
+from tools.scale_trainer.trainer import run as run_scale_trainer
 
 # ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -98,12 +99,17 @@ def menu_chord_trainer():
     run_chord_trainer()
 
 
+def menu_scale_trainer():
+    run_scale_trainer()
+
+
 def main_menu() -> str | None:
     blank()
     return questionary.select(
         "Select a tool:",
         choices=[
             questionary.Choice("Chord Trainer", value="chord_trainer"),
+            questionary.Choice("Scale Trainer", value="scale_trainer"),
             questionary.Choice("Metronome",     value="metronome"),
             questionary.Choice("Exit",          value="exit"),
         ],
@@ -124,6 +130,7 @@ def main():
 
     ROUTES = {
         "chord_trainer": menu_chord_trainer,
+        "scale_trainer": menu_scale_trainer,
         "metronome":     menu_metronome,
         "exit":          _exit,
     }
